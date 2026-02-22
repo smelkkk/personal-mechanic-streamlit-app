@@ -1,0 +1,23 @@
+# ---- Secrets ----
+.env
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+
+# ---- Virtual envs ----
+venv/
+.venv/
+new_venv/
+
+# ---- macOS ----
+.DS_Store
+
+# ---- VS Code ----
+.vscode/
+
+# ---- Streamlit ----
+.streamlit/
+
+# ---- Jupyter ----
+.ipynb_checkpoints/

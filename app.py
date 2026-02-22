@@ -1,6 +1,7 @@
 import streamlit as st
 from logic.triage import triage
 from logic.report import build_report
+from logic.llm import generate_text
 
 st.set_page_config(page_title="Personal Mechanic", layout="wide")
 
@@ -24,6 +25,10 @@ def init_state():
 
 def sidebar_inputs():
     st.sidebar.header("Context")
+
+    st.sidebar.divider()
+    st.sidebar.header("AI")
+    st.session_state.case["ai_mode"] = st.sidebar.toggle("AI explanations (LLM)", value=False)
 
     st.session_state.case["car_model"] = st.sidebar.selectbox(
         "Car model",
@@ -65,16 +70,14 @@ def main():
         st.subheader("Diagnose")
         st.write("Answer a few questions so I can guide you safely.")
 
-        photo_cam = st.camera_input("Take a photo of the dashboard warning light (optional)")
-
-        photo_upload = st.file_uploader(
-            "Or upload a photo from your phone (recommended on iOS)",
+        photo = st.file_uploader(
+            "Upload a photo of the dashboard warning light (optional)",
             type=["png", "jpg", "jpeg"],
         )
-
-        photo = photo_cam if photo_cam is not None else photo_upload
         st.session_state.case["photo_attached"] = photo is not None
-        
+
+        st.session_state.case["photo_attached"] = photo is not None
+
         with st.form("triage_form", clear_on_submit=False):
             st.session_state.case["light_behavior"] = st.radio(
                 "Is the warning light steady or flashing?",
@@ -105,10 +108,43 @@ def main():
                 "Next steps": result.next_steps,
             }
 
-            st.session_state.report = build_report(st.session_state.case, result)
-            st.toast("Recommendation and report generated.")
+            base_report = build_report(st.session_state.case, result)
 
-        st.caption("Mobile-first flow: answer → submit → view recommendation/report in other tabs.")
+            # base_report already computed above
+            if st.session_state.case.get("ai_mode"):
+                with st.spinner("Generating explanation and report..."):
+                    ok, out, err = generate_text(
+                        st.session_state.case,
+                        st.session_state.decision,
+                        base_report
+                    )
+
+                if ok:
+                    st.session_state.case["ai_explanation"] = out["explanation"]
+                    st.session_state.report = out["report"]
+                else:
+                    st.session_state.case["ai_explanation"] = None
+                    st.session_state.report = base_report
+                    st.warning(err)
+            else:
+                st.session_state.case["ai_explanation"] = None
+                st.session_state.report = base_report
+
+            st.toast("Recommendation and report generated.")
+            st.success("Recommendation generated.")
+
+            # Quick preview (mobile-friendly)
+            urgency = st.session_state.decision["Urgency"]
+            confidence = st.session_state.decision["Confidence"]
+
+            if urgency == "Stop Now":
+                st.error(f"🛑 **{urgency}** — Confidence: {confidence}")
+            elif urgency == "Service Soon":
+                st.warning(f"🟠 **{urgency}** — Confidence: {confidence}")
+            else:
+                st.success(f"🟢 **{urgency}** — Confidence: {confidence}")
+
+            st.caption("Open the **Recommendation** tab for full details and the AI explanation.")
 
     # -------------------------
     # Tab: Recommendation
@@ -119,17 +155,37 @@ def main():
         if st.session_state.decision is None:
             st.warning("No recommendation yet. Go to Diagnose and click 'Generate recommendation'.")
         else:
-            st.metric("Urgency", st.session_state.decision["Urgency"])
-            st.metric("Confidence", st.session_state.decision["Confidence"])
+            urgency = st.session_state.decision["Urgency"]
+            confidence = st.session_state.decision["Confidence"]
 
-            st.write("**Top reasons**")
-            for r in st.session_state.decision["Top reasons"]:
-                st.write(f"- {r}")
+            # Color-coded urgency banner
+            if urgency == "Stop Now":
+                st.error(f"🛑 **{urgency}** — Safety first.")
+            elif urgency == "Service Soon":
+                st.warning(f"🟠 **{urgency}** — Needs attention soon.")
+            else:
+                st.success(f"🟢 **{urgency}** — Monitor and continue carefully.")
 
-            st.write("**Next steps**")
-            for i, step in enumerate(st.session_state.decision["Next steps"], start=1):
-                st.write(f"{i}. {step}")
+            # Key metrics side-by-side (still ok on mobile)
+            c1, c2 = st.columns(2)
+            c1.metric("Urgency", urgency)
+            c2.metric("Confidence", confidence)
 
+            # Reasons + steps as grouped sections
+            with st.expander("Top reasons", expanded=True):
+                for r in st.session_state.decision["Top reasons"]:
+                    st.write(f"• {r}")
+
+            with st.expander("Next steps", expanded=True):
+                for i, step in enumerate(st.session_state.decision["Next steps"], start=1):
+                    st.write(f"{i}. {step}")
+
+            # AI explanation visually separated
+            exp = st.session_state.case.get("ai_explanation")
+            if exp:
+                st.markdown("---")
+                st.write("### AI explanation")
+                st.info(exp)
     # -------------------------
     # Tab: Mechanic Report
     # -------------------------

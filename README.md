@@ -96,3 +96,9 @@ Python · [Streamlit](https://streamlit.io) · [OpenAI API](https://platform.ope
 - Address search (geocoding) instead of manual coordinates
 - Live opening-hours filtering for "open now" shops
 - Multi-language support
+
+## License
+
+Copyright (c) 2026 Simon Melkonyan. **All rights reserved.**
+
+The source is public for viewing and evaluation only. Copying, modifying, redistributing or reusing it in other projects requires written permission. See [LICENSE](LICENSE).

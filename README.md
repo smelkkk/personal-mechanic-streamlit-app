@@ -48,8 +48,8 @@ Without an API key, or with AI mode off, the app still works. Triage, the report
 **Requirements:** Python 3.10 or newer.
 
 ```bash
-git clone https://github.com/smelkkk/first-streamlit-app.git
-cd first-streamlit-app
+git clone https://github.com/smelkkk/personal-mechanic-streamlit-app.git
+cd personal-mechanic-streamlit-app
 
 python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
